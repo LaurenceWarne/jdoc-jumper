@@ -2,13 +2,12 @@
 ;;
 ;; Author: LaurenceWarne
 ;; URL:
+;; Package-Requires: ((emacs "26") (lsp-mode "6.0") (lsp-java "6.0"))
+;; Version: 0.1
 ;;; Commentary:
 ;; 
 
 ;;; Code:
-
-(require 'lsp)
-(require 'lsp-java)
 
 (defvar jdoc-jumper-javadocio-url
   "https://static.javadoc.io/"
@@ -18,7 +17,7 @@
   "^jdt://contents.*\.m2%5C/repository%5C/net%5C.*%3C.*(.*\.class$"
   "Regular expression which uris should match for the package to work.")
 
-(defun jdoc-get-jar-details (uri &optional maven-path)
+(defun jdoc-jumper-get-jar-details (uri &optional maven-path)
   (let* ((detail-list
 	  (if maven-path (split-string uri ".m2%5C/repository%5C/")
 	    (split-string uri "modules-2%5C/files-2.1%5C/")))
@@ -26,6 +25,9 @@
 	 (org-name-version-list (split-string org-name-version "%5C/"))
 	 (start-index (if maven-path 0 1))
 	 (jar-info (car (last org-name-version-list)))
+	 (classpath (replace-regexp-in-string
+				 "[\.(]" "/"
+				 (substring (car (cdr (split-string jar-info "%3C"))) 0 -6)))
 	 (version (car (last org-name-version-list (+ start-index 2))))
 	 (artifact (car (last org-name-version-list (+ start-index 3))))
 	 (org (mapconcat 'identity (butlast org-name-version-list (+ start-index 3)) "."))
@@ -33,7 +35,7 @@
     (puthash "organisation" org info-map)
     (puthash "artifact" artifact info-map)
     (puthash "version" version info-map)
-    (puthash "jar-info" jar-info info-map)
+    (puthash "classpath" classpath info-map)
     (identity info-map)))
 
 (defun jdoc-jumper-jump-from-point ()
@@ -47,15 +49,16 @@
 	  (cond
 	   ;; Check if dependency in maven cache
 	   ((string-match-p (regexp-quote ".m2%5C/repository%5C/") uri)
-	    (jdoc-get-jar-details uri t))
+	    (jdoc-jumper-get-jar-details uri t))
 	   ;; Check if dependency in gradle cache
 	   ((string-match-p (regexp-quote "modules-2%5C/files-2.1%5C/") uri)
-	    (jdoc-get-jar-details uri))))
+	    (jdoc-jumper-get-jar-details uri))))
 	 (url
 	  (concat jdoc-jumper-javadocio-url
 		  (gethash "organisation" details-map) "/"
 		  (gethash "artifact" details-map) "/"
-		  (gethash "version" details-map))))
+		  (gethash "version" details-map) "/"
+		  (gethash "classpath" details-map) ".html")))
     (browse-url url)))
 
 (provide 'jdoc-jumper)
