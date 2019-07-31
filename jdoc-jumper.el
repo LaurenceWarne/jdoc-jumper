@@ -9,9 +9,20 @@
 
 ;;; Code:
 
+(defvar jdoc-jumper-url-callback
+  (lambda (url)
+	(progn
+	  (other-window 1)
+	  (eww url)))
+  "Function to call when jdoc-jumper wants to open url.")
+
 (defvar jdoc-jumper-javadocio-url
   "https://static.javadoc.io/"
-  "URL of default search location.")
+  "Default url for maven/gradle dependencies.")
+
+(defvar jdoc-jumper-jdk-url
+  "https://docs.oracle.com/javase/8/docs/api/"
+  "Default url for standard library classes.")
 
 (defvar jdoc-jumper-regex
   "^jdt://contents.*\.m2%5C/repository%5C/net%5C.*%3C.*(.*\.class$"
@@ -59,7 +70,7 @@
 		  (gethash "artifact" details-map) "/"
 		  (gethash "version" details-map) "/"
 		  (gethash "classpath" details-map) ".html")))
-    (browse-url url)))
+    (funcall jdoc-jumper-url-callback url)))
 
 (provide 'jdoc-jumper)
 
