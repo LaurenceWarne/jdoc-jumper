@@ -9,11 +9,7 @@
 
 ;;; Code:
 
-(defvar jdoc-jumper-url-callback
-  (lambda (url)
-	(progn
-	  (other-window 1)
-	  (eww url)))
+(defvar jdoc-jumper-url-callback 'browse-url
   "Function to call when jdoc-jumper wants to open url.")
 
 (defvar jdoc-jumper-javadocio-url
@@ -28,7 +24,7 @@
   "^jdt://contents.*\.m2%5C/repository%5C/net%5C.*%3C.*(.*\.class$"
   "Regular expression which uris should match for the package to work.")
 
-(defun jdoc-jumper-get-jar-details (uri &optional maven-path)
+(defun jdoc-jumper-get-url-from-dep-cache (uri &optional maven-path)
   (let* ((detail-list
 	  (if maven-path (split-string uri ".m2%5C/repository%5C/")
 	    (split-string uri "modules-2%5C/files-2.1%5C/")))
@@ -41,13 +37,15 @@
 				 (substring (car (cdr (split-string jar-info "%3C"))) 0 -6)))
 	 (version (car (last org-name-version-list (+ start-index 2))))
 	 (artifact (car (last org-name-version-list (+ start-index 3))))
-	 (org (mapconcat 'identity (butlast org-name-version-list (+ start-index 3)) "."))
-	 (info-map (make-hash-table :test 'equal)))
-    (puthash "organisation" org info-map)
-    (puthash "artifact" artifact info-map)
-    (puthash "version" version info-map)
-    (puthash "classpath" classpath info-map)
-    (identity info-map)))
+	 (org (mapconcat 'identity (butlast org-name-version-list (+ start-index 3)) ".")))
+	(concat jdoc-jumper-javadocio-url
+			org "/" artifact "/" version "/" classpath ".html")))
+
+(defun jdoc-jumper-get-stdlib-url (uri)
+  (let ((classpath (replace-regexp-in-string
+					"[\.(]" "/"
+					(substring (car (cdr (split-string uri "%3C"))) 0 -6))))
+	(concat jdoc-jumper-jdk-url classpath ".html")))
 
 (defun jdoc-jumper-jump-from-point ()
   "Open a browser at the javadoc of the type of the object at the cursor."
@@ -56,20 +54,16 @@
 	  (lsp-request "textDocument/typeDefinition"
 		       (lsp--text-document-position-params)))
 	 (uri (gethash "uri" (car response)))
-	 (details-map
-	  (cond
-	   ;; Check if dependency in maven cache
-	   ((string-match-p (regexp-quote ".m2%5C/repository%5C/") uri)
-	    (jdoc-jumper-get-jar-details uri t))
-	   ;; Check if dependency in gradle cache
-	   ((string-match-p (regexp-quote "modules-2%5C/files-2.1%5C/") uri)
-	    (jdoc-jumper-get-jar-details uri))))
-	 (url
-	  (concat jdoc-jumper-javadocio-url
-		  (gethash "organisation" details-map) "/"
-		  (gethash "artifact" details-map) "/"
-		  (gethash "version" details-map) "/"
-		  (gethash "classpath" details-map) ".html")))
+	 (url (cond
+		   ;; Check if dependency in maven cache
+		   ((string-match-p (regexp-quote ".m2%5C/repository%5C/") uri)
+			(jdoc-jumper-get-url-from-dep-cache uri t))
+		   ;; Check if dependency in gradle cache
+		   ((string-match-p (regexp-quote "modules-2%5C/files-2.1%5C/") uri)
+			(jdoc-jumper-get-url-from-dep-cache uri))
+		   ;; Check if class is in java standard library
+		   ((string-match-p (regexp-quote "/rt.jar%3C") uri)
+			(jdoc-jumper-get-stdlib-url uri)))))
     (funcall jdoc-jumper-url-callback url)))
 
 (provide 'jdoc-jumper)
