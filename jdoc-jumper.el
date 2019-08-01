@@ -1,28 +1,35 @@
 ;;; jdoc-jumper.el --- Jump from code directly to javadoc
 ;;
 ;; Author: LaurenceWarne
-;; URL:
-;; Package-Requires: ((emacs "26") (lsp-mode "6.0") (lsp-java "6.0"))
-;; Version: 0.1
+;; URL: https://github.com/LaurenceWarne/jdoc-jumper
+;; Package-Requires: ((emacs "25.1") (lsp-mode "6.0") (lsp-java "6.0"))
+;; Version: 0.2
+;;
 ;;; Commentary:
 ;; 
 
 ;;; Code:
 
-(defvar jdoc-jumper-url-callback 'browse-url
-  "Function to call when jdoc-jumper wants to open url.")
+(defgroup jdoc-jumper nil
+  "Tool for jumping to browser javadoc from source files."
+  :prefix "jdoc-jumper-"
+  :group 'applications
+  :link '(url-link :tag "GitHub" "https://github.com/LaurenceWarne/jdoc-jumper"))
 
-(defvar jdoc-jumper-javadocio-url
-  "https://static.javadoc.io/"
-  "Default url for maven/gradle dependencies.")
+(defcustom jdoc-jumper-url-callback 'browse-url
+  "Function to call when jdoc-jumper wants to open url."
+  :group 'jdoc-jumper
+  :type 'function)
 
-(defvar jdoc-jumper-jdk-url
-  "https://docs.oracle.com/javase/8/docs/api/"
-  "Default url for standard library classes.")
+(defcustom jdoc-jumper-javadocio-url "https://static.javadoc.io/"
+  "Base url for maven/gradle dependencies."
+  :group 'jdoc-jumper
+  :type 'string)
 
-(defvar jdoc-jumper-regex
-  "^jdt://contents.*\.m2%5C/repository%5C/net%5C.*%3C.*(.*\.class$"
-  "Regular expression which uris should match for the package to work.")
+(defcustom jdoc-jumper-jdk-url "https://docs.oracle.com/javase/8/docs/api/"
+  "Base url for standard library classes."
+  :group 'jdoc-jumper
+  :type 'string)
 
 (defun jdoc-jumper-get-url-from-dep-cache (uri &optional maven-path)
   (let* ((detail-list
